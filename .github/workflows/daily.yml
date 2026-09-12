@@ -1,0 +1,194 @@
+name: 매일 브리핑과 월요일 리포트
+
+# 깃허브 크론은 UTC 로만 적을 수 있다. 00:00 UTC 가 한국 아침 9시다.
+# 크론은 밀릴 때가 있어서 정각에 딱 맞춰 돌지는 않는다. 몇 분 늦어도 상관없는 일이라 그대로 둔다.
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "다룰 한국 날짜를 YYYY-MM-DD 로. 비우면 어제"
+        required: false
+        type: string
+      dry_run:
+        description: "미리보기로만 돌린다. 끄면 실제로 슬랙에 보낸다. 끄더라도 저장소 변수 SEND_FOR_REAL 이 true 여야 실제로 나간다"
+        required: false
+        type: boolean
+        default: true
+      report:
+        description: "월요일이 아니어도 주간 리포트를 만든다"
+        required: false
+        type: boolean
+        default: false
+
+# 어제치를 두 번 겹쳐 돌리면 판단과 알림이 두 벌 나간다. 앞 실행이 끝나기를 기다린다.
+concurrency:
+  group: news-brief
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  brief:
+    name: 수집부터 브리핑까지
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: Asia/Seoul
+      # 비밀값은 저장소 시크릿에서만 온다. 없으면 빈 문자열이 되고, 그때는 미리보기로 돈다.
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: 저장소를 받는다
+        uses: actions/checkout@v4
+
+      - name: 파이썬을 깐다
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 차트에 쓸 matplotlib 만 깐다
+        run: python -m pip install --quiet matplotlib
+
+      # DB 를 실행 사이에 이어 간다. 이어 가지 않으면 매 아침이 기사 0건에서
+      # 시작하고, 이 프로젝트가 내세우는 시계열 대목이 하나도 돌지 않는다.
+      # '처음 보는 키워드' 는 앞선 이레 건수가 0 인 말을 새것으로 보기 때문에
+      # 관심 키워드 전부가 매일 새것으로 올라가 거짓을 적게 된다.
+      # 커밋이 아니라 캐시를 고른 까닭은 sqlite 파일이 매일 커지는 이진 파일이라
+      # 저장소 역사에 하루치씩 쌓으면 받을 때마다 무거워지기 때문이다.
+      # 그 대가는 README 의 '한계' 에 적어 두었다. 캐시는 백업이 아니다.
+      - name: 앞선 실행이 남긴 DB 를 되살린다
+        id: db-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: data/news.db
+          key: news-db-${{ github.run_id }}
+          restore-keys: |
+            news-db-
+
+      - name: 한국 기준으로 무슨 요일인지 본다
+        id: weekday
+        run: |
+          if [ "$(date +%u)" = "1" ]; then
+            echo "monday=true" >> "$GITHUB_OUTPUT"
+            echo "한국 시간으로 월요일이라 주간 리포트까지 만든다."
+          else
+            echo "monday=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 실제로 보낼지 미리보기로 끝낼지 정한다
+        id: send
+        env:
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          SEND_FOR_REAL: ${{ vars.SEND_FOR_REAL }}
+        run: |
+          # 전송 여부는 시크릿 유무로 정하지 않는다. 시크릿을 넣는 일과 보내기로
+          # 정하는 일은 다른 결정이다. 웹훅 주소를 한 번 넣었다는 것만으로 다음 날
+          # 아침부터 실제 전송이 시작되면, 설정 파일만 읽은 사람은 아직 미리보기라고
+          # 믿는다. 그래서 기본은 어느 경로에서나 미리보기이고, 실제로 내보내려면
+          # 저장소 변수 SEND_FOR_REAL 을 true 로 켜 두어야 한다.
+          # 손으로 돌릴 때 dry_run 을 꺼도 이 변수가 없으면 미리보기로 남는다.
+          if [ "$SEND_FOR_REAL" != "true" ]; then
+            echo "저장소 변수 SEND_FOR_REAL 이 true 가 아니라 미리보기로 끝낸다."
+            echo "dry_run=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL 시크릿이 없어 보내지 않고 내용만 남긴다."
+            echo "dry_run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$INPUT_DRY_RUN" = "true" ]; then
+            echo "손으로 돌리면서 미리보기를 골랐다."
+            echo "dry_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SEND_FOR_REAL 이 켜져 있고 웹훅 주소가 있어 실제로 보낸다."
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 판단을 규칙으로 할지 모델로 할지 정한다
+        id: backend
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "backend=llm" >> "$GITHUB_OUTPUT"
+          else
+            echo "ANTHROPIC_API_KEY 시크릿이 없어 규칙으로 판단한다."
+            echo "backend=rules" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 어제치를 받아 브리핑까지 만든다
+        env:
+          INPUT_DATE: ${{ github.event.inputs.date }}
+          NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+          NEWS_BRIEF_BACKEND: ${{ steps.backend.outputs.backend }}
+        run: |
+          if [ -n "$INPUT_DATE" ]; then
+            python -m news_brief run --date "$INPUT_DATE"
+          else
+            python -m news_brief run
+          fi
+
+      - name: 월요일이면 지난주 리포트를 만든다
+        if: steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true'
+        env:
+          NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+        run: python -m news_brief report
+
+      - name: 이어 갈 DB 를 캐시에 남긴다
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/news.db
+          key: news-db-${{ github.run_id }}
+
+      - name: 새로 생긴 브리핑과 리포트만 올린다
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # data 폴더는 .gitignore 에 들어 있다. 마크다운과 차트만 골라 강제로 담는다.
+          # DB 와 원본 응답은 계속 무시한다. 저장소에 쌓을 것은 사람이 읽는 결과물뿐이고,
+          # DB 는 위 캐시 단계가 이어 간다.
+          # 있는 파일만 모아서 한 번에 담는다. git add 는 경로 지정이 하나라도
+          # 맞지 않으면 fatal 로 끝나고 아무것도 스테이지하지 않는다. 첫 실행에는
+          # data/reports 폴더가 아직 없어 그 무늬가 빗나가므로, 세 무늬를 그대로
+          # 넘기면 그날 만든 브리핑까지 함께 빠지고 2>/dev/null || true 가 그
+          # 사실을 가려 준다. nullglob 을 켜면 맞지 않는 무늬는 글자 그대로 남지
+          # 않고 사라져서, 아래 목록에는 실제로 있는 파일만 들어온다.
+          shopt -s nullglob
+          found=(data/briefs/*.md data/reports/*/*.md data/reports/*/*.png)
+          if [ ${#found[@]} -eq 0 ]; then
+            echo "담을 산출물이 하나도 없다. 앞 단계가 파일을 만들지 못한 것인지 봐야 한다."
+          else
+            echo "담을 파일 ${#found[@]}개를 찾았다."
+            printf '  %s\n' "${found[@]}"
+            git add --force "${found[@]}"
+          fi
+          if git diff --cached --quiet; then
+            echo "새로 생긴 파일이 없어 커밋하지 않는다."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "브리핑 갱신 $(date +%F)"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 실패하면 슬랙으로 알린다
+        if: failure()
+        env:
+          NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+        run: |
+          python - <<'PY'
+          import os
+
+          from news_brief import notify
+
+          미리보기 = os.environ.get("NEWS_BRIEF_DRY_RUN", "true").strip().lower() != "false"
+          내용 = "깃허브 액션에서 아침 브리핑이 끝까지 가지 못했다. 실행 기록은 {0} 에 있다.".format(
+              os.environ.get("RUN_URL", "주소를 모른다")
+          )
+          결과 = notify.send_failure(내용, dry_run=미리보기)
+          print(결과.get("status"), 결과.get("reason"))
+          PY

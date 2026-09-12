@@ -1,0 +1,214 @@
+{
+  "articles": [
+    {
+      "url": "https://www.yna.co.kr/view/AKR20260911001500001",
+      "url_mobile": "",
+      "title": "정부, AI 기본법 시행령 입법예고",
+      "seendate": "20260911T001500Z",
+      "socialimage": "",
+      "domain": "yna.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.mk.co.kr/news/it/11234501",
+      "url_mobile": "",
+      "title": "정부 AI 기본법 시행령 입법예고, 고위험 AI 의무 규정 담았다",
+      "seendate": "20260911T003000Z",
+      "socialimage": "",
+      "domain": "mk.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.etnews.com/20260911000123",
+      "url_mobile": "",
+      "title": "AI 기본법 시행령 입법예고... 과기정통부 1월 시행 목표",
+      "seendate": "20260911T010000Z",
+      "socialimage": "",
+      "domain": "etnews.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://zdnet.co.kr/view/?no=20260911084501",
+      "url_mobile": "",
+      "title": "과기정통부, AI 기본법 시행령 입법예고",
+      "seendate": "20260911T011500Z",
+      "socialimage": "",
+      "domain": "zdnet.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.yna.co.kr/view/AKR20260911022000002",
+      "url_mobile": "",
+      "title": "오픈AI, 새 모델 GPT-5.5 공개",
+      "seendate": "20260911T022000Z",
+      "socialimage": "",
+      "domain": "yna.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.etnews.com/20260911000188",
+      "url_mobile": "",
+      "title": "오픈AI 새 모델 GPT-5.5 공개, 추론 성능을 끌어올렸다",
+      "seendate": "20260911T023000Z",
+      "socialimage": "",
+      "domain": "etnews.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.hankyung.com/article/202609113012i",
+      "url_mobile": "",
+      "title": "오픈AI, GPT-5.5 공개... 새 모델 경쟁 다시 불붙었다",
+      "seendate": "20260911T024500Z",
+      "socialimage": "",
+      "domain": "hankyung.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.mk.co.kr/news/it/11234588",
+      "url_mobile": "",
+      "title": "네이버, 하이퍼클로바X 온디바이스 버전 출시",
+      "seendate": "20260911T044500Z",
+      "socialimage": "",
+      "domain": "mk.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.bloter.net/news/articleView.html?idxno=620113",
+      "url_mobile": "",
+      "title": "네이버 하이퍼클로바X 온디바이스 버전 출시, 스마트폰에 탑재",
+      "seendate": "20260911T050000Z",
+      "socialimage": "",
+      "domain": "bloter.net",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.yna.co.kr/view/AKR20260911053000003",
+      "url_mobile": "",
+      "title": "SK하이닉스, 엔비디아에 차세대 HBM 공급 시작",
+      "seendate": "20260911T053000Z",
+      "socialimage": "",
+      "domain": "yna.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.sedaily.com/NewsView/2GX9K1L2M3",
+      "url_mobile": "",
+      "title": "SK하이닉스, 차세대 HBM을 엔비디아에 공급한다",
+      "seendate": "20260911T054500Z",
+      "socialimage": "",
+      "domain": "sedaily.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.yna.co.kr/view/AKR20260911070000004",
+      "url_mobile": "",
+      "title": "개인정보위, AI 챗봇 개인정보 처리 실태 조사 착수",
+      "seendate": "20260911T070000Z",
+      "socialimage": "",
+      "domain": "yna.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.etnews.com/20260911000241",
+      "url_mobile": "",
+      "title": "개인정보위 AI 챗봇 실태 조사 착수, 위반 시 과징금",
+      "seendate": "20260911T071500Z",
+      "socialimage": "",
+      "domain": "etnews.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://zdnet.co.kr/view/?no=20260911170233",
+      "url_mobile": "",
+      "title": "앤스로픽, 클로드 기업용 요금제 개편",
+      "seendate": "20260911T083000Z",
+      "socialimage": "",
+      "domain": "zdnet.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.etnews.com/20260911000290",
+      "url_mobile": "",
+      "title": "휴머노이드 로봇, 국내 공장 투입이 늘어난다",
+      "seendate": "20260911T090000Z",
+      "socialimage": "",
+      "domain": "etnews.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.hani.co.kr/arti/economy/it/1209331.html",
+      "url_mobile": "",
+      "title": "생성형 AI 저작권 침해 소송, 첫 판결 나왔다",
+      "seendate": "20260911T100000Z",
+      "socialimage": "",
+      "domain": "hani.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.khan.co.kr/economy/it/article/202609112015001",
+      "url_mobile": "",
+      "title": "자율주행 시범 운행 구역이 넓어진다",
+      "seendate": "20260911T121500Z",
+      "socialimage": "",
+      "domain": "khan.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.mk.co.kr/news/stock/11234612",
+      "url_mobile": "",
+      "title": "AI 반도체 수혜주 급등, 코스피 2% 올랐다",
+      "seendate": "20260911T013000Z",
+      "socialimage": "",
+      "domain": "mk.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.hankyung.com/article/202609113088i",
+      "url_mobile": "",
+      "title": "엔비디아 목표주가 상향, AI 투자가 이어진다",
+      "seendate": "20260911T033000Z",
+      "socialimage": "",
+      "domain": "hankyung.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.sedaily.com/NewsView/2GX9K5P7Q1",
+      "url_mobile": "",
+      "title": "챗GPT 관련주 일제히 강세",
+      "seendate": "20260911T061500Z",
+      "socialimage": "",
+      "domain": "sedaily.com",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    },
+    {
+      "url": "https://www.yna.co.kr/view/AKR20260911144500005",
+      "url_mobile": "",
+      "title": "전국 곳곳에 가을비가 내린다",
+      "seendate": "20260911T144500Z",
+      "socialimage": "",
+      "domain": "yna.co.kr",
+      "language": "Korean",
+      "sourcecountry": "South Korea"
+    }
+  ]
+}
