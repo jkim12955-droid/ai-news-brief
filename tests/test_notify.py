@@ -413,3 +413,32 @@ class 인증서테스트(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 노션페이지ID뽑기Test(unittest.TestCase):
+    """시크릿에 주소를 통째로 넣어도 페이지 ID 만 뽑아 쓰는지 본다."""
+
+    ID = "1a2b3c4d5e6f40718293a4b5c6d7e8f9"
+
+    def test_ID_만_넣으면_그대로다(self):
+        from news_brief.notify import normalize_page_id
+        self.assertEqual(normalize_page_id(self.ID), self.ID)
+
+    def test_붙임표_UUID_도_받는다(self):
+        from news_brief.notify import normalize_page_id
+        self.assertEqual(normalize_page_id("1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9"), self.ID)
+
+    def test_제목이_붙은_주소에서_뽑는다(self):
+        from news_brief.notify import normalize_page_id
+        url = "https://www.notion.so/AI-Deface-" + self.ID + "?pvs=4"
+        self.assertEqual(normalize_page_id(url), self.ID)
+
+    def test_작업공간_이름이_든_주소에서_뽑는다(self):
+        from news_brief.notify import normalize_page_id
+        url = "https://www.notion.so/kimhyojun/AI-" + self.ID.upper() + "#abc"
+        self.assertEqual(normalize_page_id(url), self.ID)
+
+    def test_못_찾으면_받은_값을_돌려준다(self):
+        from news_brief.notify import normalize_page_id
+        self.assertEqual(normalize_page_id("페이지주소아님"), "페이지주소아님")
+        self.assertEqual(normalize_page_id(""), "")

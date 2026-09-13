@@ -292,6 +292,32 @@ def send_slack(payload, webhook_url=None, dry_run=True, poster=None):
     return result
 
 
+
+_UUID_DASHED = re.compile(r"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})")
+_HEX32_TAIL = re.compile(r"([0-9a-fA-F]{32})$")
+_HEX32_ALONE = re.compile(r"(?<![0-9a-fA-F])([0-9a-fA-F]{32})(?![0-9a-fA-F])")
+
+
+def normalize_page_id(value):
+    """노션 페이지 ID 를 32자리로 뽑는다.
+
+    시크릿에 ID 만 넣지 않고 페이지 주소를 통째로 붙여 넣는 경우가 많다.
+    주소라면 질의와 조각을 떼고 마지막 경로 조각에서 찾는다. 제목 뒤에 붙은
+    32자리, 붙임표가 든 UUID, 홀로 선 32자리 순서로 본다. 못 찾으면 받은 값을
+    그대로 돌려줘서 노션이 내는 오류로 원인을 알 수 있게 한다.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    head = text.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    segment = head.rsplit("/", 1)[-1]
+    for pattern in (_UUID_DASHED, _HEX32_TAIL, _HEX32_ALONE):
+        found = pattern.search(segment) or pattern.search(head)
+        if found:
+            return found.group(1).replace("-", "").lower()
+    return text
+
+
 def send_notion(title, markdown, token=None, parent_page_id=None, dry_run=True, poster=None):
     """브리핑이나 리포트를 노션 페이지로 쌓는다. 기본값은 블록만 만들어 보여주는 미리보기다.
 
@@ -301,7 +327,7 @@ def send_notion(title, markdown, token=None, parent_page_id=None, dry_run=True, 
     """
     logs = []
     resolved_token = str(token or os.environ.get("NOTION_TOKEN") or "").strip()
-    resolved_parent = str(parent_page_id or os.environ.get("NOTION_PARENT_PAGE_ID") or "").strip()
+    resolved_parent = normalize_page_id(parent_page_id or os.environ.get("NOTION_PARENT_PAGE_ID") or "")
     page_title = str(title or "제목 없음")[:MAX_TEXT_LENGTH]
     blocks = markdown_to_blocks(markdown)
 
