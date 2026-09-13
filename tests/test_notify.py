@@ -442,3 +442,17 @@ class 노션페이지ID뽑기Test(unittest.TestCase):
         from news_brief.notify import normalize_page_id
         self.assertEqual(normalize_page_id("페이지주소아님"), "페이지주소아님")
         self.assertEqual(normalize_page_id(""), "")
+
+
+class 노션페이지주소남기기Test(unittest.TestCase):
+    """노션이 돌려준 새 페이지 주소를 결과에 남기는지 본다."""
+
+    def test_응답의_url_을_결과에_담는다(self):
+        from news_brief import notify
+
+        def 가짜_보내개(url, payload, headers, method):
+            return 200, {"id": "abcd" * 8, "url": "https://www.notion.so/2026-09-12-AI-abcdabcdabcdabcdabcdabcdabcdabcd"}
+
+        result = notify.send_notion("제목", "본문 한 줄", token="secret_x", parent_page_id="1a2b3c4d5e6f40718293a4b5c6d7e8f9",
+                                    dry_run=False, poster=가짜_보내개)
+        self.assertEqual(result.get("url"), "https://www.notion.so/2026-09-12-AI-abcdabcdabcdabcdabcdabcdabcdabcd")

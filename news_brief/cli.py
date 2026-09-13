@@ -328,6 +328,8 @@ def _send_notion(cfg, title, markdown, dry_run):
         _say("노션은 아직 연동 전이라 보낼 내용만 만들어 두었다.")
     result = _need(notify, "send_notion")(title, markdown, dry_run=dry_run or not enabled)
     _say("노션: {0}. {1}".format(result.get("status"), result.get("reason", "")))
+    if result.get("url"):
+        _say("노션 페이지: {0}".format(result["url"]))
     return result
 
 

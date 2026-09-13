@@ -406,6 +406,9 @@ def send_notion(title, markdown, token=None, parent_page_id=None, dry_run=True, 
     page_id = _page_id_from(response)
     if page_id:
         result["page_id"] = mask(page_id)
+    page_url = _page_url_from(response)
+    if page_url:
+        result["url"] = page_url
     _log(logs, "노션 페이지를 만들었다. 블록 %d개를 함께 올렸다." % result["sent_blocks"],
          resolved_token, resolved_parent)
 
@@ -444,6 +447,19 @@ def send_notion(title, markdown, token=None, parent_page_id=None, dry_run=True, 
     result["status"] = "sent"
     result["reason"] = "노션에 블록 %d개를 올렸다." % result["sent_blocks"]
     return result
+
+
+def _page_url_from(response):
+    """노션 응답에서 새 페이지 주소를 꺼낸다. 비밀값이 아니라 그대로 남긴다."""
+    data = response
+    if not isinstance(data, dict):
+        try:
+            data = json.loads(response or "")
+        except (TypeError, ValueError):
+            return ""
+    if isinstance(data, dict):
+        return str(data.get("url") or "")
+    return ""
 
 
 def _page_id_from(response):
