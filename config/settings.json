@@ -89,8 +89,8 @@
     "dry_run": true,
     "dry_run_설명": "참이면 보낼 내용만 만들어 파일과 로그에 남긴다. 실제로 보내려면 실행할 때 --no-dry-run 을 붙이거나 이 값을 거짓으로 바꾼다.",
     "slack_enabled": true,
-    "notion_enabled": false,
-    "notion_enabled_설명": "노션은 첫 완성 뒤에 붙이기로 했다. 통합 토큰과 부모 페이지를 준비한 다음 참으로 바꾼다."
+    "notion_enabled": true,
+    "notion_enabled_설명": "켜 두었다. NOTION_TOKEN 과 NOTION_PARENT_PAGE_ID 가 둘 다 있을 때만 실제로 쌓고, 없으면 건너뛴 까닭만 남긴다."
   },
 
   "paths": {
