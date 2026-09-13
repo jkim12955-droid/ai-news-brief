@@ -152,6 +152,30 @@ def clean_title(title):
     return trimmed if trimmed else text
 
 
+def tidy_url(url):
+    """사람에게 보여 줄 링크를 다듬는다. 기본 포트만 떼고 나머지는 건드리지 않는다.
+
+    GDELT 가 https 주소에 :443 을, http 주소에 :80 을 붙여 주는 경우가 있다.
+    열쇠를 만들 때는 normalize_url 이 이미 떼지만, 브리핑에 그대로 실으면
+    주소가 지저분해 보인다. 링크가 그대로 열려야 하므로 www 나 질의는 남긴다.
+    """
+    text = (url or "").strip()
+    if not text:
+        return ""
+    parsed = urllib.parse.urlsplit(text)
+    if not parsed.netloc:
+        return text
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc
+    if scheme == "https" and netloc.endswith(":443"):
+        netloc = netloc[: -len(":443")]
+    elif scheme == "http" and netloc.endswith(":80"):
+        netloc = netloc[: -len(":80")]
+    if netloc == parsed.netloc:
+        return text
+    return urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+
+
 def normalize_url(url):
     """링크를 견줄 때 쓸 열쇠를 만든다.
 

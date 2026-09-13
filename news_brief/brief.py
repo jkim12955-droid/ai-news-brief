@@ -22,6 +22,8 @@ import re
 from datetime import date
 from urllib.parse import urlsplit
 
+from .collect import tidy_url
+
 # 설정에 값이 없을 때 쓰는 기본값이다. 설정의 brief.max_groups 와 brief.min_groups,
 # brief.max_keywords 가 있으면 그쪽이 이긴다. 상수만 보고 있으면 설정 파일의
 # 값을 고쳐도 결과가 달라지지 않아 설명이 사실과 어긋난다.
@@ -232,7 +234,7 @@ def _prepare_groups(judged, domains):
             {
                 "headline": headline or "제목을 옮기지 못한 묶음이다.",
                 "urls": urls,
-                "link": urls[0] if urls else "",
+                "link": tidy_url(urls[0]) if urls else "",
                 "domains": seen,
                 "domain_count": len(seen) or len(urls),
                 "article_count": len(urls),

@@ -544,3 +544,26 @@ class BadInputTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 보이는링크다듬기Test(unittest.TestCase):
+    """GDELT 가 붙여 주는 기본 포트를 브리핑 링크에서 떼는지 본다."""
+
+    def test_기본_포트를_뗀_링크가_실린다(self):
+        from news_brief.collect import tidy_url
+
+        self.assertEqual(
+            tidy_url("https://www.ddaily.co.kr:443/page/view/2026090819144801128"),
+            "https://www.ddaily.co.kr/page/view/2026090819144801128",
+        )
+        self.assertEqual(
+            tidy_url("http://www.koreatimes.com:80/article/20260911/1629413"),
+            "http://www.koreatimes.com/article/20260911/1629413",
+        )
+
+    def test_기본_포트가_아니면_그대로_둔다(self):
+        from news_brief.collect import tidy_url
+
+        self.assertEqual(tidy_url("https://example.com:8443/a"), "https://example.com:8443/a")
+        self.assertEqual(tidy_url("https://example.com/a?b=1#c"), "https://example.com/a?b=1#c")
+        self.assertEqual(tidy_url(""), "")
