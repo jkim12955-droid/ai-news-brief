@@ -21,6 +21,11 @@ on:
         required: false
         type: boolean
         default: false
+      slack:
+        description: "슬랙으로도 보낸다. 노션만 다시 올릴 때 끈다"
+        required: false
+        type: boolean
+        default: true
 
 # 어제치를 두 번 겹쳐 돌리면 판단과 알림이 두 벌 나간다. 앞 실행이 끝나기를 기다린다.
 concurrency:
@@ -122,6 +127,7 @@ jobs:
         env:
           INPUT_DATE: ${{ github.event.inputs.date }}
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+          NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
           NEWS_BRIEF_BACKEND: ${{ steps.backend.outputs.backend }}
         run: |
           if [ -n "$INPUT_DATE" ]; then
@@ -134,6 +140,7 @@ jobs:
         if: steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true'
         env:
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+          NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
         run: python -m news_brief report
 
       - name: 이어 갈 DB 를 캐시에 남긴다
@@ -179,6 +186,7 @@ jobs:
         if: failure()
         env:
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
+          NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
         run: |
           python - <<'PY'
           import os
