@@ -279,12 +279,14 @@ GDELT 는 키가 필요 없는 공개 API 지만 요청을 5초에 한 번으로
 
 ## 매일 실행을 거는 방법
 
-GitHub 예약(schedule)은 보장이 없어서 2026-09-14 에 네 번 연속 뜨지 않았다. 그래서 매일 실행은 외부 예약 서비스인 cron-job.org 가 GitHub API 로 워크플로를 불러 시작한다. 워크플로 파일의 GitHub 예약은 보조로 남겨 두었다.
+GitHub 예약(schedule)은 보장이 없다. 2026-09-14 에는 09:00, 12:37, 14:37 예약이 뜨지 않았고 16:37 예약은 1시간 37분 늦게 떴다. 그래서 매일 실행은 맥의 launchd 가 GitHub API 로 워크플로를 불러 시작한다. 워크플로 파일의 GitHub 예약은 보조로 남겨 두었다.
 
-- 부르는 주소: `POST https://api.github.com/repos/jkim12955-droid/ai-news-brief/actions/workflows/daily.yml/dispatches`
-- 머리글: `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Authorization: Bearer <토큰>`
-- 본문(08:37, 10:37, 12:37, 14:37, 16:37, 18:37): `{"ref":"main","inputs":{"dry_run":"false","auto":"true"}}`
-- 본문(20:37 마지막 시도): `{"ref":"main","inputs":{"dry_run":"false","auto":"true","last":"true"}}`
-- 토큰은 이 저장소 하나에 Actions 읽기·쓰기 권한만 준 fine-grained 토큰이다. 새어도 할 수 있는 일은 이 워크플로를 실행하는 것뿐이다. 만료일이 지나면 cron-job.org 가 401 을 받으니 그 전에 새로 발급해 바꾼다.
+- 등록 파일: `~/Library/LaunchAgents/com.kimhyojun.ai-news-brief.plist`
+- 시각: 매일 08:37, 10:37, 12:37, 14:37, 16:37, 18:37, 20:37 (맥 시간대 기준)
+- 실행 스크립트: `~/Library/Application Support/ai-news-brief/trigger.sh` 가 `gh workflow run daily.yml -f dry_run=false -f auto=true` 를 부른다. 20시 이후 실행은 `last=true` 를 붙인다
+- 기록: `~/Library/Logs/ai-news-brief/trigger.log`
+- 맥이 그 시각에 잠들어 있었으면 깨어난 직후 한 번 누른다. 맥이 하루 종일 꺼져 있으면 그날은 GitHub 보조 예약만 남는다
 
-auto 를 켠 실행은 그날 브리핑을 이미 보냈으면(`data/sent/<날짜>.txt`) 바로 끝난다. 그래서 하루에 여러 번 불러도 한 번만 나간다. 실패 알림은 마지막 시도에서만 슬랙으로 간다.
+auto 를 켠 실행은 그날 브리핑을 이미 보냈으면(`data/sent/<날짜>.txt`) 바로 끝난다. 그래서 하루에 여러 번 눌러도 한 번만 나간다. 실패 알림은 마지막 시도에서만 슬랙으로 간다.
+
+다른 맥에서 다시 걸 때는 `gh auth login` 을 한 뒤 위 스크립트와 plist 를 같은 자리에 두고 `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kimhyojun.ai-news-brief.plist` 를 실행한다. 멈출 때는 `bootstrap` 대신 `bootout` 을 쓴다.
