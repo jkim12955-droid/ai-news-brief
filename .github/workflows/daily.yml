@@ -196,7 +196,15 @@ jobs:
         env:
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
           NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
-        run: python -m news_brief report
+          INPUT_BRIEF: ${{ github.event.inputs.brief }}
+        run: |
+          # 리포트만 다시 올리는 손 실행이면 이미 있는 리포트를 새로 만든다.
+          # 사람이 채운 코멘트는 build_report 가 읽어 와 그대로 옮긴다.
+          if [ "$INPUT_BRIEF" = "false" ]; then
+            python -m news_brief report --force
+          else
+            python -m news_brief report
+          fi
 
       - name: 이어 갈 DB 를 캐시에 남긴다
         if: always() && steps.guard.outputs.skip != 'true'
