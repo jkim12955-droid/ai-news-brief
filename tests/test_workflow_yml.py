@@ -208,7 +208,7 @@ class 예약두번과중복막기시험(unittest.TestCase):
     def test_이미_보냈으면_예약_실행을_건너뛴다(self):
         본문 = 글()
         self.assertIn("id: guard", 본문)
-        self.assertIn('[ "$EVENT_NAME" = "schedule" ] && { [ -f "data/sent/$target.txt" ]', 본문)
+        self.assertIn('{ [ "$EVENT_NAME" = "schedule" ] || [ "$AUTO" = "true" ]; } && { [ -f "data/sent/$target.txt" ]', 본문)
 
     def test_가드_뒤_단계는_모두_건너뛰기를_따른다(self):
         본문 = 글()
@@ -228,14 +228,18 @@ class 예약두번과중복막기시험(unittest.TestCase):
 class 헛알림막기시험(unittest.TestCase):
     """뒤에 다시 시도할 예약 실행은 실패해도 슬랙에 알리지 않는다."""
 
-    def test_실패_알림은_마지막_예약과_손_실행에서만_간다(self):
+    def test_실패_알림은_외부_마지막_시도와_손_실행에서만_간다(self):
         본문 = 글()
-        크론들 = re.findall(r'cron:\s*"([^"]+)"', 본문)
-        마지막 = 크론들[-1]
         self.assertIn(
-            "if: failure() && (github.event_name != 'schedule' || github.event.schedule == '%s')" % 마지막,
+            "if: failure() && github.event_name == 'workflow_dispatch' && (github.event.inputs.auto != 'true' || github.event.inputs.last == 'true')",
             본문,
         )
+
+    def test_외부_예약용_입력이_있다(self):
+        본문 = 글()
+        self.assertIn("      auto:\n", 본문)
+        self.assertIn("      last:\n", 본문)
+        self.assertIn("AUTO: ${{ github.event.inputs.auto }}", 본문)
 
     def test_느린_재시도를_감당할_만큼_작업_시간을_준다(self):
         시간 = int(re.search(r"timeout-minutes:\s*(\d+)", 글()).group(1))

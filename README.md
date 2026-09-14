@@ -275,3 +275,16 @@ python3 -m news_brief run --no-dry-run --backend llm
 - DOC 2.0 API 문서: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
 
 GDELT 는 키가 필요 없는 공개 API 지만 요청을 5초에 한 번으로 제한한다. 이 프로젝트는 그 간격을 지키고, 그래도 막히면 쉬고 다시 부른다. 검색어를 넓혀 요청 수를 크게 늘리는 쪽으로 고칠 때는 GDELT 쪽 안내를 한 번 읽어 보는 편이 좋다.
+
+
+## 매일 실행을 거는 방법
+
+GitHub 예약(schedule)은 보장이 없어서 2026-09-14 에 네 번 연속 뜨지 않았다. 그래서 매일 실행은 외부 예약 서비스인 cron-job.org 가 GitHub API 로 워크플로를 불러 시작한다. 워크플로 파일의 GitHub 예약은 보조로 남겨 두었다.
+
+- 부르는 주소: `POST https://api.github.com/repos/jkim12955-droid/ai-news-brief/actions/workflows/daily.yml/dispatches`
+- 머리글: `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Authorization: Bearer <토큰>`
+- 본문(08:37, 10:37, 12:37, 14:37, 16:37, 18:37): `{"ref":"main","inputs":{"dry_run":"false","auto":"true"}}`
+- 본문(20:37 마지막 시도): `{"ref":"main","inputs":{"dry_run":"false","auto":"true","last":"true"}}`
+- 토큰은 이 저장소 하나에 Actions 읽기·쓰기 권한만 준 fine-grained 토큰이다. 새어도 할 수 있는 일은 이 워크플로를 실행하는 것뿐이다. 만료일이 지나면 cron-job.org 가 401 을 받으니 그 전에 새로 발급해 바꾼다.
+
+auto 를 켠 실행은 그날 브리핑을 이미 보냈으면(`data/sent/<날짜>.txt`) 바로 끝난다. 그래서 하루에 여러 번 불러도 한 번만 나간다. 실패 알림은 마지막 시도에서만 슬랙으로 간다.
