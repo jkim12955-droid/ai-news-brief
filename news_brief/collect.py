@@ -15,6 +15,7 @@ import html
 import json
 import logging
 import re
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -398,6 +399,13 @@ def _within(seendate, start_utc, end_utc):
     return str(start_utc) <= digits <= str(end_utc)
 
 
+# GDELT 는 요청을 막는 동안 오류 대신 빈 응답을 돌려줄 때가 있다. 이 검색어로 하루치가
+# 0건인 날은 사실상 없으니, 받은 건수가 0이면 쉬었다가 몇 번 더 불러 본다.
+# 쉬는 것은 실제 API 를 부를 때만이다. 시험에서 끼워 넣는 부르개는 기다리지 않는다.
+DEFAULT_EMPTY_RETRIES = 2
+DEFAULT_EMPTY_RETRY_SECONDS = 60
+
+
 def fixture_fetcher(fixture_dir, date_str=None):
     """저장해 둔 응답으로 GDELT 를 대신할 부르개를 만든다.
 
@@ -698,28 +706,44 @@ def collect_day(date_str, cfg, fetcher=None):
     logger.info("%s 하루치를 모은다. UTC 구간 %s ~ %s", date_str, start_utc, end_utc)
 
     raw_dir = _raw_dir(cfg)
-    state = {
-        "articles": [],
-        "windows": [],
-        "truncated": [],
-        "responses": [],
-        "blocked": [],
-        "dropped_no_url": 0,
-        "stray": [],
-        "day_window": (start_utc, end_utc),
-        "partial_path": _start_partial(raw_dir, date_str),
-    }
-    _collect_window(
-        query,
-        start_utc,
-        end_utc,
-        maxrecords,
-        sleep_seconds,
-        0,
-        max_depth,
-        fetcher,
-        state,
-    )
+    partial_path = _start_partial(raw_dir, date_str)
+    빈응답재시도 = max(0, int(_setting(cfg, ("empty_retries",), DEFAULT_EMPTY_RETRIES)))
+    빈응답대기 = float(_setting(cfg, ("empty_retry_seconds",), DEFAULT_EMPTY_RETRY_SECONDS))
+    for 시도 in range(빈응답재시도 + 1):
+        state = {
+            "articles": [],
+            "windows": [],
+            "truncated": [],
+            "responses": [],
+            "blocked": [],
+            "dropped_no_url": 0,
+            "stray": [],
+            "day_window": (start_utc, end_utc),
+            "partial_path": partial_path,
+        }
+        _collect_window(
+            query,
+            start_utc,
+            end_utc,
+            maxrecords,
+            sleep_seconds,
+            0,
+            max_depth,
+            fetcher,
+            state,
+        )
+        받은건수 = sum(int(r.get("count") or 0) for r in state["responses"])
+        if state["blocked"] or not state["responses"] or 받은건수 > 0 or 시도 == 빈응답재시도:
+            break
+        실제호출 = fetcher is gdelt.fetch_artlist
+        logger.warning(
+            "%s 하루치 응답이 비어 있다. GDELT 가 막는 동안 빈 응답을 주기도 해서 %g초 쉬고 다시 부른다. %d번째 다시 부르기다",
+            date_str,
+            빈응답대기 if 실제호출 else 0,
+            시도 + 1,
+        )
+        if 실제호출 and 빈응답대기 > 0:
+            time.sleep(빈응답대기)
 
     if state["blocked"] and not state["responses"]:
         # 한 구간도 받지 못했다. 이때 빈 하루로 넘기면 브리핑이 '조용한 날' 이라고

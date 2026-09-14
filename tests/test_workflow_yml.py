@@ -194,3 +194,32 @@ class 글쓰기시험(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 예약두번과중복막기시험(unittest.TestCase):
+    """정각을 피해 두 번 걸고, 먼저 보낸 날은 뒤 예약이 건너뛰는지 본다."""
+
+    def test_정각에_걸지_않는다(self):
+        크론들 = re.findall(r'cron:\s*"([^"]+)"', 글())
+        self.assertGreaterEqual(len(크론들), 2)
+        for 크론 in 크론들:
+            self.assertNotEqual(크론.split()[0], "0", "정각은 깃허브가 밀리거나 빼먹는 시각이다")
+
+    def test_이미_보냈으면_예약_실행을_건너뛴다(self):
+        본문 = 글()
+        self.assertIn("id: guard", 본문)
+        self.assertIn('[ "$EVENT_NAME" = "schedule" ] && [ -f "data/sent/$target.txt" ]', 본문)
+
+    def test_가드_뒤_단계는_모두_건너뛰기를_따른다(self):
+        본문 = 글()
+        뒤 = 본문[본문.index("id: guard"):]
+        단계들 = re.split(r"(?m)^      - name: ", 뒤)[1:]
+        for 단계 in 단계들:
+            if "if: failure()" in 단계:
+                continue
+            self.assertIn("steps.guard.outputs.skip != 'true'", 단계, 단계.splitlines()[0])
+
+    def test_실제로_보낸_날만_표시를_남기고_커밋한다(self):
+        본문 = 글()
+        self.assertIn("steps.send.outputs.dry_run == 'false'", 본문)
+        self.assertIn("sent=(data/sent/*.txt)", 본문)

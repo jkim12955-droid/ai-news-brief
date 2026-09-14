@@ -783,3 +783,47 @@ class 구간밖기사Test(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 빈응답다시부르기Test(unittest.TestCase):
+    """GDELT 가 막는 동안 준 빈 응답을 0건으로 받아들이지 않고 다시 부르는지 본다."""
+
+    date_str = "2026-09-11"
+
+    def run_collect(self, fetcher, cfg=None):
+        base = {"maxrecords": 250, "sleep_seconds": 0, "empty_retry_seconds": 0}
+        base.update(cfg or {})
+        with tempfile.TemporaryDirectory() as tmp:
+            base.setdefault("paths", {"data_dir": tmp})
+            base["data_dir"] = tmp
+            with window_provider():
+                return collect.collect_day(self.date_str, base, fetcher=fetcher)
+
+    def test_처음이_비면_다시_불러_기사를_받는다(self):
+        fetcher = RecordingFetcher(responses=[[], [sample_article("1"), sample_article("2")]])
+        result = self.run_collect(fetcher)
+        self.assertEqual(len(result["articles"]), 2)
+        self.assertEqual(len(fetcher.calls), 2)
+        self.assertEqual(len(result["windows"]), 1, "다시 부른 시도의 구간만 남아야 한다")
+
+    def test_계속_비면_정해진_만큼만_부르고_빈_하루로_넘긴다(self):
+        fetcher = RecordingFetcher(responses=[])
+        result = self.run_collect(fetcher)
+        self.assertEqual(result["articles"], [])
+        self.assertEqual(len(fetcher.calls), 1 + collect.DEFAULT_EMPTY_RETRIES)
+
+    def test_다시_부르기를_끄면_한_번만_부른다(self):
+        fetcher = RecordingFetcher(responses=[])
+        self.run_collect(fetcher, {"empty_retries": 0})
+        self.assertEqual(len(fetcher.calls), 1)
+
+    def test_기사가_오면_다시_부르지_않는다(self):
+        fetcher = RecordingFetcher(responses=[[sample_article("1")]])
+        self.run_collect(fetcher)
+        self.assertEqual(len(fetcher.calls), 1)
+
+    def test_끼워_넣은_부르개는_기다리지_않는다(self):
+        fetcher = RecordingFetcher(responses=[])
+        with mock.patch.object(collect.time, "sleep") as 잠:
+            self.run_collect(fetcher, {"empty_retry_seconds": 60})
+        잠.assert_not_called()

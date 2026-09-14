@@ -1,10 +1,14 @@
 name: 매일 브리핑과 월요일 리포트
 
-# 깃허브 크론은 UTC 로만 적을 수 있다. 00:00 UTC 가 한국 아침 9시다.
-# 크론은 밀릴 때가 있어서 정각에 딱 맞춰 돌지는 않는다. 몇 분 늦어도 상관없는 일이라 그대로 둔다.
+# 깃허브 크론은 UTC 로만 적을 수 있다.
+# 정각은 깃허브가 부하가 몰린다고 경고하는 시각이라 실행이 몇 시간 밀리거나 빠진다.
+# 2026-09-13 예약은 2시간 20분 늦게 돌았고 09-14 예약은 시작되지 않았다.
+# 그래서 정각을 피해 한국 시각 8시 37분에 걸고, 10시 37분에 한 번 더 건다.
+# 앞 시도가 이미 보냈으면 뒤 시도는 '오늘 몫을 이미 보냈는지 본다' 단계에서 끝난다.
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "37 23 * * *"
+    - cron: "37 1 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -53,12 +57,34 @@ jobs:
       - name: 저장소를 받는다
         uses: actions/checkout@v4
 
+      - name: 오늘 몫을 이미 보냈는지 본다
+        id: guard
+        env:
+          INPUT_DATE: ${{ github.event.inputs.date }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -n "$INPUT_DATE" ]; then
+            target="$INPUT_DATE"
+          else
+            target="$(date -d yesterday +%F)"
+          fi
+          echo "date=$target" >> "$GITHUB_OUTPUT"
+          # 손으로 돌리는 실행은 이 확인을 건너뛴다. 다시 보내고 싶을 때 막히면 안 된다.
+          if [ "$EVENT_NAME" = "schedule" ] && [ -f "data/sent/$target.txt" ]; then
+            echo "$target 브리핑은 이미 보냈다. 이번 예약 실행은 여기서 끝낸다."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 파이썬을 깐다
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: 차트에 쓸 matplotlib 만 깐다
+        if: steps.guard.outputs.skip != 'true'
         run: python -m pip install --quiet matplotlib
 
       # DB 를 실행 사이에 이어 간다. 이어 가지 않으면 매 아침이 기사 0건에서
@@ -69,6 +95,7 @@ jobs:
       # 저장소 역사에 하루치씩 쌓으면 받을 때마다 무거워지기 때문이다.
       # 그 대가는 README 의 '한계' 에 적어 두었다. 캐시는 백업이 아니다.
       - name: 앞선 실행이 남긴 DB 를 되살린다
+        if: steps.guard.outputs.skip != 'true'
         id: db-restore
         uses: actions/cache/restore@v4
         with:
@@ -78,6 +105,7 @@ jobs:
             news-db-
 
       - name: 한국 기준으로 무슨 요일인지 본다
+        if: steps.guard.outputs.skip != 'true'
         id: weekday
         run: |
           if [ "$(date +%u)" = "1" ]; then
@@ -88,6 +116,7 @@ jobs:
           fi
 
       - name: 실제로 보낼지 미리보기로 끝낼지 정한다
+        if: steps.guard.outputs.skip != 'true'
         id: send
         env:
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
@@ -114,6 +143,7 @@ jobs:
           fi
 
       - name: 판단을 규칙으로 할지 모델로 할지 정한다
+        if: steps.guard.outputs.skip != 'true'
         id: backend
         run: |
           if [ -n "$ANTHROPIC_API_KEY" ]; then
@@ -124,8 +154,10 @@ jobs:
           fi
 
       - name: 어제치를 받아 브리핑까지 만든다
+        if: steps.guard.outputs.skip != 'true'
         env:
           INPUT_DATE: ${{ github.event.inputs.date }}
+          TARGET_DATE: ${{ steps.guard.outputs.date }}
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
           NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
           NEWS_BRIEF_BACKEND: ${{ steps.backend.outputs.backend }}
@@ -133,24 +165,34 @@ jobs:
           if [ -n "$INPUT_DATE" ]; then
             python -m news_brief run --date "$INPUT_DATE"
           else
-            python -m news_brief run
+            python -m news_brief run --date "$TARGET_DATE"
           fi
 
       - name: 월요일이면 지난주 리포트를 만든다
-        if: steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true'
+        if: steps.guard.outputs.skip != 'true' && (steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true')
         env:
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
           NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}
         run: python -m news_brief report
 
       - name: 이어 갈 DB 를 캐시에 남긴다
-        if: always()
+        if: always() && steps.guard.outputs.skip != 'true'
         uses: actions/cache/save@v4
         with:
           path: data/news.db
           key: news-db-${{ github.run_id }}
 
+      - name: 실제로 보냈으면 표시를 남긴다
+        if: steps.guard.outputs.skip != 'true' && steps.send.outputs.dry_run == 'false'
+        env:
+          TARGET_DATE: ${{ steps.guard.outputs.date }}
+        run: |
+          mkdir -p data/sent
+          printf '%s\n' "$RUN_URL" > "data/sent/$TARGET_DATE.txt"
+          echo "$TARGET_DATE 브리핑을 보냈다는 표시를 남겼다. 뒤이은 예약 실행은 이걸 보고 건너뛴다."
+
       - name: 새로 생긴 브리핑과 리포트만 올린다
+        if: steps.guard.outputs.skip != 'true'
         id: commit
         run: |
           git config user.name "github-actions[bot]"
@@ -172,6 +214,10 @@ jobs:
             echo "담을 파일 ${#found[@]}개를 찾았다."
             printf '  %s\n' "${found[@]}"
             git add --force "${found[@]}"
+          fi
+          sent=(data/sent/*.txt)
+          if [ ${#sent[@]} -gt 0 ]; then
+            git add --force "${sent[@]}"
           fi
           if git diff --cached --quiet; then
             echo "새로 생긴 파일이 없어 커밋하지 않는다."
