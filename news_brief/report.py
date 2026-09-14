@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+from .collect import tidy_url
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -577,7 +578,12 @@ def _group_lines(groups, empty_sentence):
         day = group["date"][5:]
         urls = group["urls"]
         if urls:
-            tail = "기사 %d건, 대표 링크 %s" % (len(urls), urls[0])
+            # GDELT 가 붙여 주는 :443 같은 기본 포트는 보여 줄 때 뗀다.
+            링크 = tidy_url(urls[0])
+            if len(urls) == 1:
+                tail = "대표 링크 %s" % 링크
+            else:
+                tail = "기사 %d건, 대표 링크 %s" % (len(urls), 링크)
         else:
             tail = "대표 링크가 없다"
         lines.append("- %s %s (%s)" % (day, _clean_text(group["headline"]), tail))
@@ -662,13 +668,22 @@ def _table_lines(rows):
     return lines
 
 
-def _headline_sentence(rows):
+def _table_lines_this_week_only(rows):
+    lines = ["| 키워드 | 이번 주 |", "| --- | ---: |"]
+    for row in rows:
+        lines.append("| %s | %d |" % (row["keyword"], row["this_week"]))
+    return lines
+
+
+def _headline_sentence(rows, compare=True):
     top = rows[0]
     first = "이번 주에 가장 많이 나온 키워드는 %s%s %d건이다." % (
         top["keyword"],
         _josa(top["keyword"], "으로", "로"),
         top["this_week"],
     )
+    if not compare:
+        return first
     if top["delta"] > 0:
         second = " 지난주보다 %d건 늘었다." % top["delta"]
     elif top["delta"] < 0:
@@ -678,7 +693,10 @@ def _headline_sentence(rows):
     return first + second
 
 
-def _volume_sentence(this_kept, last_kept):
+def _volume_sentence(this_kept, last_kept, last_has_data=True):
+    if not last_has_data:
+        # 지난주는 기사가 0건이었던 게 아니라 모으지 않았다. 0 과 견주면 '늘었다' 는 거짓이 된다.
+        return "이번 주에 AI가 남긴 기사는 %d건이다. 지난주는 수집 기록이 없어 견주지 않는다." % this_kept
     first = "이번 주에 AI가 남긴 기사는 %d건, 지난주는 %d건이다." % (this_kept, last_kept)
     diff = this_kept - last_kept
     if diff > 0:
@@ -702,7 +720,8 @@ def _render_markdown(context):
         "대상 기간은 한국 시간으로 %s 월요일부터 %s 일요일까지다."
         % (context["start"], context["end"])
     )
-    lines.append(_volume_sentence(context["this_kept"], context["last_kept"]))
+    지난주기록 = context.get("last_has_data", True)
+    lines.append(_volume_sentence(context["this_kept"], context["last_kept"], 지난주기록))
     if context["missing"]:
         lines.append(
             "판단 기록이 없는 날이 %d일 있다. 빈 날짜는 다음과 같다. %s"
@@ -736,11 +755,16 @@ def _render_markdown(context):
     elif not rows:
         lines.append("이번 주에도 지난주에도 걸린 키워드가 없어서 표를 비워 둔다.")
     else:
-        lines.extend(_table_lines(rows))
+        if 지난주기록:
+            lines.extend(_table_lines(rows))
+        else:
+            lines.extend(_table_lines_this_week_only(rows))
         lines.append("")
-        lines.append(_headline_sentence(rows))
-        fresh = [row["keyword"] for row in rows if row["note"] == "지난주에는 없었다"]
-        gone = [row["keyword"] for row in rows if row["note"] == "이번 주에는 안 나왔다"]
+        lines.append(_headline_sentence(rows, compare=지난주기록))
+        if not 지난주기록:
+            lines.append("지난주는 수집 기록이 없어 늘고 줄어든 것은 적지 않는다.")
+        fresh = [row["keyword"] for row in rows if 지난주기록 and row["note"] == "지난주에는 없었다"]
+        gone = [row["keyword"] for row in rows if 지난주기록 and row["note"] == "이번 주에는 안 나왔다"]
         if fresh:
             lines.append(
                 "지난주에 없다가 이번 주에 올라온 키워드는 %s%s."
@@ -913,6 +937,9 @@ def build_report(week_start, conn, cfg, decisions_loader=None, counts_fn=None):
             "policies": this_week["policies"],
             "this_kept": this_week["kept"],
             "last_kept": last_week["kept"],
+            # 지난주 이레 가운데 판단 기록이 남은 날이 하루라도 있어야 견준다.
+            "last_has_data": (len(last_week["missing"]) + len(last_week["upcoming"]) < 7)
+            or any(int(v or 0) > 0 for v in (counts_prev or {}).values()),
             "missing": this_week["missing"],
             "upcoming": this_week["upcoming"],
             "comments": comments,

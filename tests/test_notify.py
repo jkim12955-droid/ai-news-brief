@@ -456,3 +456,22 @@ class 노션페이지주소남기기Test(unittest.TestCase):
         result = notify.send_notion("제목", "본문 한 줄", token="secret_x", parent_page_id="1a2b3c4d5e6f40718293a4b5c6d7e8f9",
                                     dry_run=False, poster=가짜_보내개)
         self.assertEqual(result.get("url"), "https://www.notion.so/2026-09-12-AI-abcdabcdabcdabcdabcdabcdabcdabcd")
+
+
+class 노션상대링크Test(unittest.TestCase):
+    """노션이 거절하는 상대 경로 링크를 글자로만 남기는지 본다."""
+
+    def test_상대_경로_그림은_링크로_만들지_않는다(self):
+        from news_brief import notify
+        블록들 = notify.markdown_to_blocks("![상위 키워드 차트](keywords.png)")
+        글자들 = [t for b in 블록들 for t in b[b["type"]]["rich_text"]]
+        self.assertTrue(all(t["text"]["link"] is None for t in 글자들))
+        합친글 = "".join(t["text"]["content"] for t in 글자들)
+        self.assertIn("상위 키워드 차트", 합친글)
+        self.assertNotIn("!", 합친글)
+
+    def test_절대_주소_링크는_살린다(self):
+        from news_brief import notify
+        블록들 = notify.markdown_to_blocks("[원문](https://example.com/a)")
+        링크들 = [t["text"]["link"] for b in 블록들 for t in b[b["type"]]["rich_text"] if t["text"]["link"]]
+        self.assertEqual(링크들, [{"url": "https://example.com/a"}])

@@ -322,7 +322,8 @@ class ReportTestCase(ReportFixture):
         self.assertFalse(self.chart_file().exists())
         self.assertIn("표를 비워 둔다", result["markdown"])
         self.assertIn("이번 주 차트는 만들지 않았다", result["markdown"])
-        self.assertIn("이번 주에 AI가 남긴 기사는 0건, 지난주는 0건이다.", result["markdown"])
+        # 지난주는 0건이었던 게 아니라 기록이 없다. 0과 견주지 않는다.
+        self.assertIn("지난주는 수집 기록이 없어 견주지 않는다.", result["markdown"])
 
     def test_counts_source_missing_is_reported(self):
         def broken(conn, start_date, end_date, keywords):
@@ -390,9 +391,11 @@ class ReportTestCase(ReportFixture):
         self.assertEqual(report._josa("KW1", "은", "는"), "은")  # 일로 끝난다
         self.assertEqual(report._josa("KW2", "은", "는"), "는")  # 이로 끝난다
 
-        self.cfg["keywords"] = ["오픈AI", "저작권"]
+        self.cfg["keywords"] = ["오픈AI", "저작권", "반도체"]
         self.add_articles("2026-09-08", "오픈AI", 3)
         self.add_articles("2026-09-08", "저작권", 1)
+        # 지난주에도 기록이 있어야 '올라온 키워드' 를 견줄 수 있다.
+        self.add_articles("2026-09-01", "반도체", 1)
         markdown = self.build()["markdown"]
 
         self.assertIn("이번 주에 가장 많이 나온 키워드는 오픈AI로 3건이다.", markdown)
@@ -699,3 +702,26 @@ class ReportCleanTextTest(ReportFixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class 지난주기록없음Test(unittest.TestCase):
+    """지난주를 모으지 않은 주에 '늘었다' 를 쓰지 않는다."""
+
+    def test_지난주_기록이_없으면_견주지_않는다(self):
+        문장 = report._volume_sentence(201, 0, last_has_data=False)
+        self.assertNotIn("늘었다", 문장)
+        self.assertIn("201건", 문장)
+
+    def test_지난주_기록이_있으면_견준다(self):
+        self.assertIn("늘었다", report._volume_sentence(201, 150, last_has_data=True))
+
+
+class 리포트링크다듬기Test(unittest.TestCase):
+    def test_묶음_링크의_기본_포트를_떼고_한_건이면_건수를_빼다(self):
+        줄 = report._group_lines(
+            [{"date": "2026-09-09", "headline": "메타가 AI 비서를 공개했다", "urls": ["https://www.segye.com:443/newsView/1"]}],
+            "없다",
+        )[0]
+        self.assertIn("https://www.segye.com/newsView/1", 줄)
+        self.assertNotIn(":443", 줄)
+        self.assertNotIn("기사 1건", 줄)

@@ -175,7 +175,19 @@ def _inline_rich_text(text):
         if first.start() > 0:
             items.extend(_plain_rich_text(rest[:first.start()]))
         if first.re is _LINK_RE:
-            items.extend(_plain_rich_text(first.group(1) or first.group(2), link=first.group(2)))
+            주소 = first.group(2)
+            글 = first.group(1) or 주소
+            그림 = first.start() > 0 and rest[first.start() - 1] == "!"
+            if 그림 and items and items[-1]["text"]["content"].endswith("!"):
+                items[-1]["text"]["content"] = items[-1]["text"]["content"][:-1]
+                if not items[-1]["text"]["content"]:
+                    items.pop()
+            if 주소.lower().startswith(("http://", "https://")):
+                items.extend(_plain_rich_text(글, link=주소))
+            else:
+                # 노션은 상대 경로 링크를 받지 않고 페이지 전체를 거절한다(400 Invalid URL for link).
+                꼬리 = " (이미지는 노션에 올리지 않았다)" if 그림 else ""
+                items.extend(_plain_rich_text(글 + 꼬리))
         else:
             items.extend(_plain_rich_text(first.group(1), bold=True))
         rest = rest[first.end():]

@@ -36,6 +36,11 @@ on:
         required: false
         type: boolean
         default: true
+      brief:
+        description: "브리핑을 만든다. 주간 리포트만 다시 올릴 때 끈다"
+        required: false
+        type: boolean
+        default: true
 
 # 어제치를 두 번 겹쳐 돌리면 판단과 알림이 두 벌 나간다. 앞 실행이 끝나기를 기다린다.
 concurrency:
@@ -163,7 +168,7 @@ jobs:
           fi
 
       - name: 어제치를 받아 브리핑까지 만든다
-        if: steps.guard.outputs.skip != 'true'
+        if: steps.guard.outputs.skip != 'true' && github.event.inputs.brief != 'false'
         env:
           INPUT_DATE: ${{ github.event.inputs.date }}
           TARGET_DATE: ${{ steps.guard.outputs.date }}
@@ -176,6 +181,15 @@ jobs:
           else
             python -m news_brief run --date "$TARGET_DATE"
           fi
+
+      - name: 차트에 쓸 한글 폰트를 깐다
+        if: steps.guard.outputs.skip != 'true' && (steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true')
+        run: |
+          # 러너에는 한글 폰트가 없어 차트 축이 로마자로 떨어진다. 나눔고딕을 깔고
+          # matplotlib 폰트 목록을 새로 만들게 옛 캐시를 지운다.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-nanum
+          rm -rf ~/.cache/matplotlib
 
       - name: 월요일이면 지난주 리포트를 만든다
         if: steps.guard.outputs.skip != 'true' && (steps.weekday.outputs.monday == 'true' || github.event.inputs.report == 'true')
@@ -192,7 +206,7 @@ jobs:
           key: news-db-${{ github.run_id }}
 
       - name: 실제로 보냈으면 표시를 남긴다
-        if: steps.guard.outputs.skip != 'true' && steps.send.outputs.dry_run == 'false'
+        if: steps.guard.outputs.skip != 'true' && steps.send.outputs.dry_run == 'false' && github.event.inputs.brief != 'false'
         env:
           TARGET_DATE: ${{ steps.guard.outputs.date }}
           EVENT_NAME: ${{ github.event_name }}
