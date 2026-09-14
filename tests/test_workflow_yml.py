@@ -208,7 +208,7 @@ class 예약두번과중복막기시험(unittest.TestCase):
     def test_이미_보냈으면_예약_실행을_건너뛴다(self):
         본문 = 글()
         self.assertIn("id: guard", 본문)
-        self.assertIn('[ "$EVENT_NAME" = "schedule" ] && [ -f "data/sent/$target.txt" ]', 본문)
+        self.assertIn('[ "$EVENT_NAME" = "schedule" ] && { [ -f "data/sent/$target.txt" ]', 본문)
 
     def test_가드_뒤_단계는_모두_건너뛰기를_따른다(self):
         본문 = 글()
@@ -240,3 +240,16 @@ class 헛알림막기시험(unittest.TestCase):
     def test_느린_재시도를_감당할_만큼_작업_시간을_준다(self):
         시간 = int(re.search(r"timeout-minutes:\s*(\d+)", 글()).group(1))
         self.assertGreaterEqual(시간, 45)
+
+
+class 늦은예약중복막기시험(unittest.TestCase):
+    """늦게 도는 예약 실행이 오래된 커밋을 받아 이미 보낸 날을 또 보내지 않는지 본다."""
+
+    def test_가드가_main_의_최신_표시를_본다(self):
+        본문 = 글()
+        self.assertIn("git fetch --quiet --depth=1 origin main", 본문)
+        self.assertIn('git cat-file -e "origin/main:data/sent/$target.txt"', 본문)
+
+    def test_올리기_전에_main_위로_얹는다(self):
+        본문 = 글()
+        self.assertLess(본문.index("git pull --rebase --quiet origin main"), 본문.index("            git push"))

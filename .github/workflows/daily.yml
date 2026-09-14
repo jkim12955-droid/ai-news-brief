@@ -76,7 +76,10 @@ jobs:
           fi
           echo "date=$target" >> "$GITHUB_OUTPUT"
           # 손으로 돌리는 실행은 이 확인을 건너뛴다. 다시 보내고 싶을 때 막히면 안 된다.
-          if [ "$EVENT_NAME" = "schedule" ] && [ -f "data/sent/$target.txt" ]; then
+          # 예약 실행은 이벤트가 생긴 시점의 커밋을 받는다. 그사이 다른 실행이 표시를
+          # 남겼을 수 있어서 main 의 최신 상태를 따로 받아 확인한다.
+          git fetch --quiet --depth=1 origin main || true
+          if [ "$EVENT_NAME" = "schedule" ] && { [ -f "data/sent/$target.txt" ] || git cat-file -e "origin/main:data/sent/$target.txt" 2>/dev/null; }; then
             echo "$target 브리핑은 이미 보냈다. 이번 예약 실행은 여기서 끝낸다."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -235,6 +238,9 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "브리핑 갱신 $(date +%F)"
+            # 실행 도중 main 이 앞서 나갔으면 그대로 올리다 거절당한다. 받은 커밋은
+            # data 아래 파일뿐이라 다른 커밋과 겹치지 않으니 위에 얹어 올린다.
+            git pull --rebase --quiet origin main
             git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
