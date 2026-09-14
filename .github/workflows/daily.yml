@@ -3,12 +3,15 @@ name: 매일 브리핑과 월요일 리포트
 # 깃허브 크론은 UTC 로만 적을 수 있다.
 # 정각은 깃허브가 부하가 몰린다고 경고하는 시각이라 실행이 몇 시간 밀리거나 빠진다.
 # 2026-09-13 예약은 2시간 20분 늦게 돌았고 09-14 예약은 시작되지 않았다.
-# 그래서 정각을 피해 한국 시각 8시 37분에 걸고, 10시 37분에 한 번 더 건다.
+# 그래서 정각을 피해 한국 시각 8시 37분, 10시 37분, 12시 37분에 세 번 건다.
 # 앞 시도가 이미 보냈으면 뒤 시도는 '오늘 몫을 이미 보냈는지 본다' 단계에서 끝난다.
+# 실패 알림은 마지막 예약(12시 37분)과 손으로 돌린 실행에서만 보낸다. 앞 시도가
+# GDELT 에 막혀 실패해도 뒤 시도가 메울 수 있어서, 그때마다 알리면 헛알림이 된다.
 on:
   schedule:
     - cron: "37 23 * * *"
     - cron: "37 1 * * *"
+    - cron: "37 3 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -43,7 +46,7 @@ jobs:
   brief:
     name: 수집부터 브리핑까지
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     env:
       TZ: Asia/Seoul
       # 비밀값은 저장소 시크릿에서만 온다. 없으면 빈 문자열이 되고, 그때는 미리보기로 돈다.
@@ -229,7 +232,7 @@ jobs:
           fi
 
       - name: 실패하면 슬랙으로 알린다
-        if: failure()
+        if: failure() && (github.event_name != 'schedule' || github.event.schedule == '37 3 * * *')
         env:
           NEWS_BRIEF_DRY_RUN: ${{ steps.send.outputs.dry_run }}
           NEWS_BRIEF_SLACK_ENABLED: ${{ github.event.inputs.slack == 'false' && 'false' || 'true' }}

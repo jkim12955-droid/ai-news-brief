@@ -52,7 +52,9 @@ TIMEOUT_SECONDS = 40
 # 5초 간격을 지켜도 GDELT 가 막는 날이 있어서, 한 번 막혔다고 하루치를
 # 통째로 버리지 않도록 세 번까지 다시 불러 본다. 다 더해도 1분 반이라
 # 하루 한 번 도는 일정에는 부담이 없다.
-RETRY_WAITS = (12, 24, 48)
+# GitHub Actions 러너는 여러 사용자가 IP 를 같이 써서, 우리가 5초 간격을 지켜도 GDELT 가
+# 몇 분씩 막는다. 2026-09-14 에는 12초, 24초, 48초를 다 쉬고도 막혔다. 분 단위로 늘린다.
+RETRY_WAITS = (30, 90, 180, 300)
 
 # urllib 기본 User-Agent 로 부르면 거절당하는 경우가 있어 따로 붙인다.
 USER_AGENT = "ai-news-brief/1.0 (portfolio project; python-urllib)"

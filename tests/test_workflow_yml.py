@@ -223,3 +223,20 @@ class 예약두번과중복막기시험(unittest.TestCase):
         본문 = 글()
         self.assertIn("steps.send.outputs.dry_run == 'false'", 본문)
         self.assertIn("sent=(data/sent/*.txt)", 본문)
+
+
+class 헛알림막기시험(unittest.TestCase):
+    """뒤에 다시 시도할 예약 실행은 실패해도 슬랙에 알리지 않는다."""
+
+    def test_실패_알림은_마지막_예약과_손_실행에서만_간다(self):
+        본문 = 글()
+        크론들 = re.findall(r'cron:\s*"([^"]+)"', 본문)
+        마지막 = 크론들[-1]
+        self.assertIn(
+            "if: failure() && (github.event_name != 'schedule' || github.event.schedule == '%s')" % 마지막,
+            본문,
+        )
+
+    def test_느린_재시도를_감당할_만큼_작업_시간을_준다(self):
+        시간 = int(re.search(r"timeout-minutes:\s*(\d+)", 글()).group(1))
+        self.assertGreaterEqual(시간, 45)

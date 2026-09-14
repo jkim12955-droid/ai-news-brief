@@ -286,7 +286,7 @@ class 막혔을_때_다시_부르기Test(unittest.TestCase):
         self.assertEqual(len(결과["articles"]), 1)
         # 첫 5초는 5초에 한 번 약속을 지키려고 부르기 전에 쉬는 시간이다.
         self.assertEqual(self.쉰시간[0], 5)
-        self.assertEqual(self.쉰시간[1:], [12.0, 24.0])
+        self.assertEqual(self.쉰시간[1:], [float(초) for 초 in gdelt.RETRY_WAITS[:2]])
 
     def test_끝까지_막히면_그대로_올려_보낸다(self):
         def 늘_막힘(url):
