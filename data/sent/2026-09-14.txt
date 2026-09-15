@@ -1,0 +1,6 @@
+sent_at=2026-09-15 09:30
+event=workflow_dispatch
+schedule=
+auto=false
+last=false
+run=https://github.com/jkim12955-droid/ai-news-brief/actions/runs/34913401383
