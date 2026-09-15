@@ -664,7 +664,15 @@ def collect_day(date_str, cfg, fetcher=None):
     stray_dropped 에, 어느 기사였는지는 stray_samples 에 담아 점검이 보게 한다.
     """
     cfg = cfg or {}
-    fetcher = fetcher or gdelt.fetch_artlist
+    if fetcher is None:
+        # 출처가 gdelt_gkg 면 원본 파일에서, 아니면 예전처럼 DOC API 에서 받는다.
+        # 부르개를 넣어 준 시험과 픽스처 실행은 이 설정과 상관없이 넣어 준 것을 쓴다.
+        if str(_setting(cfg, ("source",), "gdelt_doc")).strip() == "gdelt_gkg":
+            from . import gkg
+
+            fetcher = gkg.day_fetcher(date_str, cfg)
+        else:
+            fetcher = gdelt.fetch_artlist
 
     window_fn = getattr(config, "kst_day_window", None)
     if window_fn is None:

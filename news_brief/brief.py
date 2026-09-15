@@ -384,9 +384,12 @@ def _source_sentence(cfg):
     query = _text(_first(cfg, ("query", "default_query", "base_query")))
     if not query and isinstance(cfg.get("gdelt"), dict):
         query = _text(_first(cfg["gdelt"], ("query", "default_query", "base_query")))
-    line = "자료는 GDELT DOC 2.0 에서 받았고 하루 경계는 한국 시간으로 끊었다."
-    if query:
-        line += " 검색어는 {0} 이다.".format(query)
+    if _text(cfg.get("source")) == "gdelt_gkg":
+        line = "자료는 GDELT 번역 수집 원본 파일(GKG)에서 받았고 하루 경계는 한국 시간으로 끊었다. 한국어 기사 가운데 제목에 AI 관련어가 든 것만 골랐다."
+    else:
+        line = "자료는 GDELT DOC 2.0 에서 받았고 하루 경계는 한국 시간으로 끊었다."
+        if query:
+            line += " 검색어는 {0} 이다.".format(query)
     line += " 제목과 링크, 매체, 시각만 들어오기 때문에 본문은 읽지 않고 제목만 보고 골랐다."
     return line
 

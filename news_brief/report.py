@@ -648,12 +648,15 @@ def _source_sentence(cfg, start, end):
                 break
         if query:
             break
-    line = (
-        "자료는 GDELT DOC 2.0 에서 받았고 하루 경계는 한국 시간으로 끊었다. "
-        "집계한 날짜는 %s 부터 %s 까지다." % (start, end)
-    )
-    if query:
-        line += " 검색어는 %s 이다." % query
+    if str(cfg.get("source") or "").strip() == "gdelt_gkg":
+        line = "자료는 GDELT 번역 수집 원본 파일(GKG)에서 받았고 하루 경계는 한국 시간으로 끊었다. 한국어 기사 가운데 제목에 AI 관련어가 든 것만 골랐다. 집계한 날짜는 %s 부터 %s 까지다." % (start, end)
+    else:
+        line = (
+            "자료는 GDELT DOC 2.0 에서 받았고 하루 경계는 한국 시간으로 끊었다. "
+            "집계한 날짜는 %s 부터 %s 까지다." % (start, end)
+        )
+        if query:
+            line += " 검색어는 %s 이다." % query
     line += " 제목과 링크, 매체, 시각만 들어오기 때문에 본문은 읽지 않고 제목만 보고 골랐다."
     return line
 
@@ -825,10 +828,16 @@ def _render_markdown(context):
         "GDELT 는 색인해 둔 매체만 훑는다. 국내 매체 가운데 빠진 곳이 있어서, "
         "여기 없는 기사가 실제로 없었다는 뜻은 아니다."
     )
-    lines.append(
-        "한 번에 받아 오는 기사는 250건이 상한이다. 상한에 걸린 구간은 시간을 쪼개 "
-        "다시 받지만, 쪼갠 경계에서 빠지는 기사가 있을 수 있다."
-    )
+    if context.get("source_kind") == "gdelt_gkg":
+        lines.append(
+            "기사는 GDELT 가 15분마다 올리는 원본 파일에서 받는다. 받지 못한 파일이 있으면 "
+            "그 15분 동안의 기사가 빠진다. AI 소식인지는 제목에 AI 관련어가 있는지로 먼저 고른다."
+        )
+    else:
+        lines.append(
+            "한 번에 받아 오는 기사는 250건이 상한이다. 상한에 걸린 구간은 시간을 쪼개 "
+            "다시 받지만, 쪼갠 경계에서 빠지는 기사가 있을 수 있다."
+        )
     lines.append(
         "분류와 묶기는 제목만 보고 한다. 본문을 읽지 않으니 제목이 모호한 기사는 "
         "엉뚱한 묶음에 들어가기도 한다."
@@ -944,6 +953,7 @@ def build_report(week_start, conn, cfg, decisions_loader=None, counts_fn=None):
             "upcoming": this_week["upcoming"],
             "comments": comments,
             "source": _source_sentence(cfg, week_key, end_date.isoformat()),
+            "source_kind": str((cfg or {}).get("source") or "").strip(),
             "chart_relative": CHART_FILE_NAME if chart_path else None,
         }
     )
