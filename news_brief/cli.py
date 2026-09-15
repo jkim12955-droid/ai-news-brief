@@ -273,10 +273,11 @@ def _stats_for(conn, date_str, articles, cfg):
     store = _module("store")
 
     window = int(config.setting(cfg, "brief.average_window_days", 7) or 7)
-    start = config.shift_date(date_str, -window)
-    end = config.shift_date(date_str, -1)
-    counts = _need(store, "daily_counts")(conn, start, end) if hasattr(store, "daily_counts") else {}
-    average = (sum(counts.values()) / len(counts)) if counts else 0.0
+    min_days = int(config.setting(cfg, "brief.average_min_days", 3) or 1)
+    평균 = _need(store, "recent_average")(
+        conn, date_str, window, since=config.setting(cfg, "source_since"), min_days=min_days
+    )
+    average = 평균["average"] or 0.0
 
     lookback = int(config.setting(cfg, "brief.first_seen_lookback_days", 7) or 7)
     앞선기간 = _need(store, "daily_counts")(
@@ -299,6 +300,8 @@ def _stats_for(conn, date_str, articles, cfg):
     stats = {
         "article_count": len(articles),
         "avg_7d": average,
+        "avg_days_used": 평균["days_used"],
+        "avg_min_days": min_days,
         "first_seen_keywords": first_seen,
         "first_seen_lookback_days": lookback,
         "history_article_count": 앞선건수,

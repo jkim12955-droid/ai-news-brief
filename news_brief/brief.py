@@ -288,8 +288,11 @@ def _lead_detail(group):
     return "다룬 매체는 한 곳뿐이지만 어제 나온 소식 가운데 가장 컸다."
 
 
-def _volume_sentence(count, avg):
-    """기사 수와 최근 7일 평균 대비를 한 문장으로 적는다. 평균이 0 이면 건수만 적는다."""
+def _volume_sentence(count, avg, days_used=None):
+    """기사 수와 최근 7일 평균 대비를 한 문장으로 적는다. 평균이 0 이면 건수만 적는다.
+
+    days_used 가 오고 평균이 없으면, 견줄 기록이 며칠뿐이라 견주지 않았다고 덧붙인다.
+    """
     if count is None:
         return ""
     if count == 0:
@@ -300,6 +303,10 @@ def _volume_sentence(count, avg):
         return "어제는 기사가 한 건도 모이지 않았다."
     base = "어제 모인 기사는 {0}건이다.".format(count)
     if not avg or avg <= 0:
+        if days_used == 0:
+            return base + " 견줄 만한 앞선 기록이 아직 없어 최근 평균과는 견주지 않았다."
+        if days_used is not None:
+            return base + " 견줄 만한 앞선 기록이 {0}일뿐이라 최근 평균과는 견주지 않았다.".format(days_used)
         return base
     diff = count - avg
     tolerance = max(1.0, avg * 0.05)
@@ -319,18 +326,29 @@ def _group_detail(group):
     return " · ".join(bits)
 
 
-def _group_notes(total, shown, max_groups, min_groups):
+def _group_notes(groups, shown, max_groups, min_groups):
     """묶음을 몇 개 잘랐는지, 너무 적지는 않은지 적는다.
 
     잘랐다는 사실을 적지 않으면 읽는 사람은 그날 묶음이 그것뿐이라고 읽는다.
+    원본 파일로 바꾼 뒤로는 한 곳만 다룬 소식이 하루 250개 안팎이라, 전체 묶음 수만
+    적으면 같은 소식이 흩어진 것처럼 읽힌다. 그래서 두 곳 이상이 다룬 수를 함께 적는다.
     """
     notes = []
+    total = len(groups)
     if total > shown:
-        notes.append(
-            "어제 묶인 소식은 {0}개인데 브리핑에는 {1}개까지만 올리기로 해서 {2}개는 실지 않았다.".format(
-                total, max_groups, total - shown
+        multi = sum(1 for g in groups if g["domain_count"] >= 2)
+        if multi:
+            notes.append(
+                "어제 나온 소식은 {0}개이고 두 곳 이상이 함께 다룬 소식은 {1}개였다. 브리핑에는 {2}개만 올렸다.".format(
+                    total, multi, shown
+                )
             )
-        )
+        else:
+            notes.append(
+                "어제 나온 소식은 {0}개인데 모두 한 곳에서만 다뤘다. 브리핑에는 {1}개만 올렸다.".format(
+                    total, shown
+                )
+            )
     if min_groups and shown < min_groups:
         notes.append(
             "올린 묶음이 {0}개다. 설정에는 {1}개는 되어야 한다고 적어 두었으니 수집이나 판단 쪽을 한 번 보는 편이 좋겠다.".format(
@@ -562,7 +580,7 @@ def build_brief(date_str, judged, stats, cfg):
     given_summary = _sentence(_first(stats, _SUMMARY_KEYS) or _first(judged, _SUMMARY_KEYS))
     title = _title_line(date_str)
     source = _source_sentence(cfg)
-    volume = _volume_sentence(count, avg)
+    volume = _volume_sentence(count, avg, stats.get("avg_days_used") if isinstance(stats, dict) else None)
 
     history_note = _history_note(stats)
 
@@ -603,7 +621,7 @@ def build_brief(date_str, judged, stats, cfg):
 
     general, policy = _split_groups(groups, lead is not None, max_groups)
     shown = len(general) + len(policy) + (1 if lead is not None else 0)
-    notes = _group_notes(len(groups), shown, max_groups, min_groups)
+    notes = _group_notes(groups, shown, max_groups, min_groups)
     if history_note:
         notes.append(history_note)
     markdown = _markdown(

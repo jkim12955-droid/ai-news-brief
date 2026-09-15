@@ -13,6 +13,8 @@
     "workers": 6,
     "workers_설명": "파일을 동시에 몇 개씩 받을지."
   },
+  "source_since": "2026-09-14",
+  "source_since_설명": "출처를 GDELT 원본 파일로 바꾼 날이다. 이 날 앞의 기록은 모으는 방식이 달라 하루 기사 수를 견줄 수 없으므로 최근 평균에 넣지 않는다. 출처를 또 바꾸면 그 날짜로 고친다.",
   "query": "(\"artificial intelligence\" OR OpenAI) sourcelang:korean",
   "query_설명": "GDELT DOC 2.0 검색어다. sourcelang:korean 이 한국어 기사만 남긴다. 따옴표는 JSON 규칙대로 역슬래시를 붙여 적는다.",
   "maxrecords": 250,
@@ -42,7 +44,9 @@
     "first_seen_lookback_days": 7,
     "first_seen_lookback_days_설명": "처음 보는 키워드를 가릴 때 며칠 전까지 거슬러 보는지다. 7이면 최근 일주일에 없던 말만 새것으로 친다.",
     "average_window_days": 7,
-    "average_window_days_설명": "기사 수를 견줄 평균을 며칠로 낼지다. 어제 하루를 최근 이레 평균과 견준다."
+    "average_window_days_설명": "기사 수를 견줄 평균을 며칠로 낼지다. 어제 하루를 최근 이레 평균과 견준다.",
+    "average_min_days": 3,
+    "average_min_days_설명": "기사가 있는 날이 이만큼은 있어야 평균과 견준다. 수집이 돌지 않은 날은 0건으로 치지 않고 뺀다. 그런 날을 0으로 넣으면 평균이 낮아져 평소 수준의 날을 몇 배로 늘었다고 적게 된다."
   },
   "report": {
     "설명": "월요일 아침에 지난주를 정리하는 리포트다.",

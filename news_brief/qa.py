@@ -83,6 +83,9 @@ DEFAULT_DROP_RATIO = 0.7
 # 평균을 낼 때 되돌아볼 날 수.
 DEFAULT_LOOKBACK_DAYS = 7
 
+# 기록이 있는 날이 이보다 적으면 평균과 견주지 않는다.
+DEFAULT_MIN_AVERAGE_DAYS = 3
+
 # 한국 날짜를 벗어난 기사가 수집 건수의 이 비율을 넘으면 멈춘다.
 # 그 아래면 주의만 남긴다. 15분 단위로 끊긴 시각이 경계에서 옆날로 보이는 것까지
 # 멈춤으로 보면 하루를 통째로 잃는다.
@@ -614,29 +617,21 @@ def _check_history(info):
     )
 
 
-def _recent_average(conn, date_str, lookback_days):
-    """대상 날짜 앞의 며칠을 평균 낸다. 기사가 없던 날도 0 으로 넣어 센다."""
+def _recent_average(conn, date_str, lookback_days, cfg=None):
+    """대상 날짜 앞의 며칠을 평균 낸다. 기록이 없는 날과 출처를 바꾸기 전 날은 뺀다.
+
+    셈은 store.recent_average 가 한다. 브리핑 문장과 이 점검이 같은 평균을 봐야
+    한쪽은 평소 수준이라 하고 다른 쪽은 다섯 배라고 하는 일이 없다.
+    """
     from . import store
 
-    target = _parse_day(date_str)
-    start = (target - dt.timedelta(days=lookback_days)).isoformat()
-    end = (target - dt.timedelta(days=1)).isoformat()
-
-    counts_fn = getattr(store, "daily_counts", None)
-    if counts_fn is not None:
-        counts = counts_fn(conn, start, end)
-        values = [int(v) for v in counts.values()]
-    else:
-        # daily_counts 가 없는 경우를 대비해 계약에 적힌 함수만으로도 셀 수 있게 해 둔다.
-        values = []
-        cursor = target - dt.timedelta(days=lookback_days)
-        while cursor < target:
-            values.append(len(store.articles_for_date(conn, cursor.isoformat())))
-            cursor += dt.timedelta(days=1)
-
-    if not values:
-        return None, 0
-    return sum(values) / len(values), len(values)
+    min_days = int(
+        _number_setting(cfg, ("qa.average_min_days", "brief.average_min_days"), DEFAULT_MIN_AVERAGE_DAYS)
+    )
+    result = store.recent_average(
+        conn, date_str, lookback_days, since=_dig(cfg, "source_since"), min_days=min_days
+    )
+    return result["average"], result["days_used"]
 
 
 def _check_volume(conn, date_str, total, cfg):
@@ -660,10 +655,18 @@ def _check_volume(conn, date_str, total, cfg):
     )
 
     try:
-        average, days = _recent_average(conn, date_str, lookback)
+        average, days = _recent_average(conn, date_str, lookback, cfg)
     except Exception as err:
         return _check("최근 이레 대비", WARN, "최근 기록을 읽지 못했다. %s" % err)
 
+    if average is None:
+        return _check(
+            "최근 이레 대비",
+            OK,
+            ("앞선 %d일 가운데 견줄 기록이 %d일뿐이라 견주지 않았다" % (lookback, days))
+            if days
+            else "앞선 %d일에 견줄 기록이 없어 견주지 않았다" % lookback,
+        )
     if not average or average < floor:
         return _check(
             "최근 이레 대비",

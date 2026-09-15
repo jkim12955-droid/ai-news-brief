@@ -435,6 +435,26 @@ class DailyCountsTest(StoreTestCase):
         )
 
 
+class RecentAverageTest(StoreTestCase):
+    def setUp(self):
+        super().setUp()
+        store.upsert_articles(self.conn, DAY_ONE, day_one_articles(), now=FIRST_RUN_AT)
+        store.upsert_articles(self.conn, DAY_TWO, day_two_articles(), now=SECOND_RUN_AT)
+
+    def test_기사가_없는_날은_빼고_평균을_낸다(self):
+        결과 = store.recent_average(self.conn, "2026-09-12", 7, min_days=2)
+        self.assertEqual(결과, {"average": 2.0, "days_used": 2, "window": 7})
+
+    def test_기록이_모자라면_평균을_내지_않는다(self):
+        결과 = store.recent_average(self.conn, "2026-09-12", 7, min_days=3)
+        self.assertIsNone(결과["average"])
+        self.assertEqual(결과["days_used"], 2)
+
+    def test_출처를_바꾸기_전_날은_뺀다(self):
+        결과 = store.recent_average(self.conn, "2026-09-12", 7, since=DAY_TWO, min_days=1)
+        self.assertEqual((결과["average"], 결과["days_used"]), (2.0, 1))
+
+
 class DateValidationTest(StoreTestCase):
     def test_형식이_틀린_날짜는_거부한다(self):
         for 잘못된값 in ("20260911", "2026/09/11", "", None, "어제"):

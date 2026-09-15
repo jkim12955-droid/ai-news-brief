@@ -177,6 +177,12 @@ class BuildBriefTest(unittest.TestCase):
         built = brief.build_brief("2026-09-11", busy_judged(), busy_stats(article_count=12, avg_7d=30.5), CFG)
         self.assertIn("최근 7일 평균 30.5건보다 18.5건 적다.", built["markdown"])
 
+    def test_견줄_기록이_모자라면_그렇다고_적는다(self):
+        stats = busy_stats(article_count=339, avg_7d=0)
+        stats["avg_days_used"] = 1
+        built = brief.build_brief("2026-09-14", busy_judged(), stats, CFG)
+        self.assertIn("어제 모인 기사는 339건이다. 견줄 만한 앞선 기록이 1일뿐이라 최근 평균과는 견주지 않았다.", built["markdown"])
+
     def test_처음_보는_키워드가_있는_날(self):
         stats = busy_stats(first_seen_keywords=["소버린 AI", {"keyword": "온디바이스"}, "소버린 AI"])
         built = brief.build_brief("2026-09-11", busy_judged(), stats, CFG)
@@ -279,7 +285,7 @@ class GroupLimitTest(unittest.TestCase):
         cfg = dict(CFG, brief={"min_groups": 3, "max_groups": 5})
         markdown = brief.build_brief("2026-09-11", self.many(), busy_stats(), cfg)["markdown"]
         self.assertIn(
-            "어제 묶인 소식은 13개인데 브리핑에는 5개까지만 올리기로 해서 8개는 실지 않았다.",
+            "어제 나온 소식은 13개이고 두 곳 이상이 함께 다룬 소식은 11개였다. 브리핑에는 5개만 올렸다.",
             markdown,
         )
 
@@ -295,7 +301,7 @@ class GroupLimitTest(unittest.TestCase):
         cfg = dict(CFG, brief={"min_groups": 3, "max_groups": 5})
         built = brief.build_brief("2026-09-11", busy_judged(), busy_stats(), cfg)
         self.assertEqual(built["group_total"], built["group_shown"])
-        self.assertNotIn("실지 않았다", built["markdown"])
+        self.assertNotIn("만 올렸다", built["markdown"])
         self.assertNotIn("올린 묶음이", built["markdown"])
 
     def test_설정이_없으면_기본값으로_돈다(self):

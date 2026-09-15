@@ -332,7 +332,46 @@ class 평균대비시험(unittest.TestCase):
         self.addCleanup(conn.close)
         결과 = qa.run_checks(conn, 날짜, 정상수집(), {})
         self.assertEqual(상태(결과, "최근 이레 대비"), "ok")
-        self.assertIn("이르다", 내용(결과, "최근 이레 대비"))
+        self.assertIn("견주지 않았다", 내용(결과, "최근 이레 대비"))
+
+    def 날마다_채운다(self, 건수들):
+        """{며칠 전: 건수} 대로 DB 를 채운다. 적지 않은 날은 수집이 돌지 않은 날이다."""
+        conn = store.open_db(":memory:")
+        self.addCleanup(conn.close)
+        기준 = dt.date.fromisoformat(날짜)
+        for 뒤로, 건수 in 건수들.items():
+            그날 = (기준 - dt.timedelta(days=뒤로)).isoformat()
+            store.upsert_articles(conn, 그날, [
+                기사("https://zdnet.co.kr/view/?no=%s-%d" % (그날, i), "%sT013000Z" % 그날.replace("-", ""))
+                for i in range(건수)
+            ])
+        return conn
+
+    def 오늘(self, 건수):
+        수집 = 정상수집()
+        수집["articles"] = [
+            기사("https://zdnet.co.kr/view/?no=t%d" % i, "20260911T013000Z") for i in range(건수)
+        ]
+        return 수집
+
+    def test_수집이_돌지_않은_날은_0건으로_치지_않는다(self):
+        conn = self.날마다_채운다({1: 60, 2: 60, 3: 60})
+        결과 = qa.run_checks(conn, 날짜, self.오늘(60), {})
+        self.assertEqual(상태(결과, "최근 이레 대비"), "ok")
+        self.assertIn("평균 60건", 내용(결과, "최근 이레 대비"))
+
+    def test_출처를_바꾸기_전_기록은_평균에_넣지_않는다(self):
+        conn = self.날마다_채운다({1: 60, 2: 60, 3: 60, 4: 5, 5: 5})
+        기준 = dt.date.fromisoformat(날짜)
+        cfg = {"source_since": (기준 - dt.timedelta(days=3)).isoformat()}
+        결과 = qa.run_checks(conn, 날짜, self.오늘(60), cfg)
+        self.assertIn("평균 60건", 내용(결과, "최근 이레 대비"))
+
+    def test_기록이_있는_날이_모자라면_견주지_않는다(self):
+        conn = self.날마다_채운다({1: 60, 2: 60})
+        결과 = qa.run_checks(conn, 날짜, self.오늘(300), {})
+        self.assertEqual(상태(결과, "최근 이레 대비"), "ok")
+        self.assertIn("견줄 기록이 2일뿐", 내용(결과, "최근 이레 대비"))
 
     def test_DB에_덜_들어갔으면_주의다(self):
         conn = store.open_db(":memory:")

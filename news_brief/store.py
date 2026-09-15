@@ -29,6 +29,7 @@ __all__ = [
     "keyword_hit",
     "first_seen_keywords",
     "daily_counts",
+    "recent_average",
     "runs_for_date",
 ]
 
@@ -274,8 +275,8 @@ def first_seen_keywords(conn, date_str, lookback_days, keywords):
 def daily_counts(conn, start_date, end_date):
     """기간 안 날짜별 기사 수를 돌려준다.
 
-    기사가 한 건도 없는 날도 0 으로 채워 넣는다.
-    최근 이레 평균 같은 값을 낼 때 빈 날이 빠지면 평균이 부풀기 때문이다.
+    기사가 한 건도 없는 날도 0 으로 채워 넣는다. 어느 날이 비었는지 보여 주려는 것이다.
+    평균은 이 값을 그대로 나누지 않고 recent_average 가 빈 날을 빼고 낸다.
     """
     start = _parse_kst_date(start_date)
     end = _parse_kst_date(end_date)
@@ -301,6 +302,27 @@ def daily_counts(conn, start_date, end_date):
     for row in rows:
         counts[row[0]] = int(row[1])
     return counts
+
+
+def recent_average(conn, date_str, days, since=None, min_days=3):
+    """대상 날짜 앞 며칠의 하루 평균 기사 수를 낸다.
+
+    기사가 한 건도 없는 날은 빼고 낸다. 하루 수백 건이 모이는 지금 0건인 날은
+    조용한 날이 아니라 수집이 돌지 않은 날이다. 9월 14일 브리핑이 그런 날을 0으로
+    넣어 평균을 59.3건으로 낮게 잡았고, 어제 339건을 평균의 5.7배라고 적었다.
+    since 보다 앞선 날도 뺀다. 출처를 바꾼 날 앞의 기록은 모으는 방식이 달라
+    건수를 견줄 수 없어서다. 남은 날이 min_days 보다 적으면 평균을 내지 않는다.
+    """
+    counts = daily_counts(
+        conn,
+        (date.fromisoformat(_parse_kst_date(date_str)) - timedelta(days=int(days))).isoformat(),
+        (date.fromisoformat(_parse_kst_date(date_str)) - timedelta(days=1)).isoformat(),
+    )
+    floor = _parse_kst_date(since) if since else ""
+    used = [count for day, count in counts.items() if count > 0 and day >= floor]
+    if not used or len(used) < int(min_days or 1):
+        return {"average": None, "days_used": len(used), "window": int(days)}
+    return {"average": sum(used) / len(used), "days_used": len(used), "window": int(days)}
 
 
 def runs_for_date(conn, date_str):
