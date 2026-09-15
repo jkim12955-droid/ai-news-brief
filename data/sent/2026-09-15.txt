@@ -1,0 +1,6 @@
+sent_at=2026-09-16 00:40
+event=schedule
+schedule=37 11 * * *
+auto=
+last=
+run=https://github.com/jkim12955-droid/ai-news-brief/actions/runs/34989906280
