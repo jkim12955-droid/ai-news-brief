@@ -199,11 +199,27 @@ if __name__ == "__main__":
 class 예약두번과중복막기시험(unittest.TestCase):
     """정각을 피해 두 번 걸고, 먼저 보낸 날은 뒤 예약이 건너뛰는지 본다."""
 
-    def test_정각에_걸지_않는다(self):
+    def test_정각에_걸지_않고_여러_번_건다(self):
         크론들 = re.findall(r'cron:\s*"([^"]+)"', 글())
-        self.assertGreaterEqual(len(크론들), 2)
+        self.assertTrue(크론들)
+        시각수 = 0
         for 크론 in 크론들:
             self.assertNotEqual(크론.split()[0], "0", "정각은 깃허브가 밀리거나 빼먹는 시각이다")
+            시각수 += len(크론.split()[1].split(","))
+        self.assertGreaterEqual(시각수, 2, "한 번 밀리거나 빠져도 뒤 시도가 메워야 한다")
+
+    def test_자동_실행은_아침에만_보낸다(self):
+        """밀린 예약이 한밤에 돌아 브리핑이 새벽에 나가는 일을 막는다."""
+        본문 = 글()
+        self.assertIn('hour="$(date +%-H)"', 본문)
+        self.assertIn('{ [ "$hour" -lt 9 ] || [ "$hour" -ge 12 ]; }', 본문)
+        self.assertIn("TZ: Asia/Seoul", 본문, "시각을 한국 시간으로 봐야 한다")
+
+    def test_예약은_아침_시간대에만_건다(self):
+        크론들 = re.findall(r'cron:\s*"([^"]+)"', 글())
+        시각들 = [int(h) for 크론 in 크론들 for h in 크론.split()[1].split(",")]
+        for 시각 in 시각들:
+            self.assertIn((시각 + 9) % 24, (9, 10, 11), "한국 시각 9시에서 11시 사이여야 한다")
 
     def test_이미_보냈으면_예약_실행을_건너뛴다(self):
         본문 = 글()
